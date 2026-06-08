@@ -85,20 +85,6 @@ export default function LoginForm({ compact = false, onSuccess }: LoginFormProps
           {loading ? "Signing in..." : "Sign in"}
         </button>
       </form>
-
-      <div className="rounded-lg border border-[var(--tdc-border)] bg-[var(--tdc-rose-light)]/40 p-4">
-        <span className="block text-xs font-semibold text-[var(--tdc-muted)]">
-          Demo credentials
-        </span>
-        <div className="mt-1 space-y-0.5 text-sm text-[var(--tdc-text)]">
-          <div>
-            <strong>User:</strong> matchmaker@tdc.com
-          </div>
-          <div>
-            <strong>Pass:</strong> tdc2024
-          </div>
-        </div>
-      </div>
     </div>
   );
 }

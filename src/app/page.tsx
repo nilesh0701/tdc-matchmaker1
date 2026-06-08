@@ -70,7 +70,7 @@ export default function LandingPage() {
             onClick={() => setPortalOpen(true)}
             className="rounded-full bg-[var(--tdc-text)] px-5 py-2 text-sm font-medium text-white transition hover:bg-black"
           >
-            Matchmaker Portal
+            Login
           </button>
         </div>
       </header>

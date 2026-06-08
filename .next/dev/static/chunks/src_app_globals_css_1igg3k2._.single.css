@@ -526,6 +526,10 @@
     margin-top: calc(var(--spacing) * 10);
   }
 
+  .mt-auto {
+    margin-top: auto;
+  }
+
   .mb-1\.5 {
     margin-bottom: calc(var(--spacing) * 1.5);
   }
@@ -695,6 +699,10 @@
     rotate: 45deg;
   }
 
+  .rotate-180 {
+    rotate: 180deg;
+  }
+
   .animate-spin {
     animation: var(--animate-spin);
   }
@@ -769,12 +777,6 @@
 
   .gap-px {
     gap: 1px;
-  }
-
-  :where(.space-y-0\.5 > :not(:last-child)) {
-    --tw-space-y-reverse: 0;
-    margin-block-start: calc(calc(var(--spacing) * .5) * var(--tw-space-y-reverse));
-    margin-block-end: calc(calc(var(--spacing) * .5) * calc(1 - var(--tw-space-y-reverse)));
   }
 
   :where(.space-y-2 > :not(:last-child)) {
@@ -920,16 +922,6 @@
 
   .bg-\[var\(--tdc-rose-light\)\] {
     background-color: var(--tdc-rose-light);
-  }
-
-  .bg-\[var\(--tdc-rose-light\)\]\/40 {
-    background-color: var(--tdc-rose-light);
-  }
-
-  @supports (color: color-mix(in lab, red, red)) {
-    .bg-\[var\(--tdc-rose-light\)\]\/40 {
-      background-color: color-mix(in oklab, var(--tdc-rose-light) 40%, transparent);
-    }
   }
 
   .bg-\[var\(--tdc-rose-light\)\]\/50 {
@@ -1154,6 +1146,10 @@
     padding-block: calc(var(--spacing) * 20);
   }
 
+  .pt-4 {
+    padding-top: calc(var(--spacing) * 4);
+  }
+
   .pt-6 {
     padding-top: calc(var(--spacing) * 6);
   }
@@ -1358,6 +1354,10 @@
     -moz-osx-font-smoothing: grayscale;
   }
 
+  .opacity-0 {
+    opacity: 0;
+  }
+
   .opacity-25 {
     opacity: .25;
   }
@@ -1368,6 +1368,10 @@
 
   .opacity-75 {
     opacity: .75;
+  }
+
+  .opacity-100 {
+    opacity: 1;
   }
 
   .shadow-\[var\(--tdc-rose\)\]\/20 {
@@ -1456,6 +1460,12 @@
     transition-duration: var(--tw-duration, var(--default-transition-duration));
   }
 
+  .transition-opacity {
+    transition-property: opacity;
+    transition-timing-function: var(--tw-ease, var(--default-transition-timing-function));
+    transition-duration: var(--tw-duration, var(--default-transition-duration));
+  }
+
   .transition-transform {
     transition-property: transform, translate, scale, rotate;
     transition-timing-function: var(--tw-ease, var(--default-transition-timing-function));
@@ -1517,6 +1527,12 @@
   }
 
   @media (hover: hover) {
+    .hover\:border-\[var\(--tdc-rose\)\]:hover {
+      border-color: var(--tdc-rose);
+    }
+  }
+
+  @media (hover: hover) {
     .hover\:border-gray-300:hover {
       border-color: var(--color-gray-300);
     }
@@ -1537,6 +1553,30 @@
   @media (hover: hover) {
     .hover\:bg-\[var\(--tdc-rose-light\)\]:hover {
       background-color: var(--tdc-rose-light);
+    }
+  }
+
+  @media (hover: hover) {
+    .hover\:bg-\[var\(--tdc-rose-light\)\]\/20:hover {
+      background-color: var(--tdc-rose-light);
+    }
+
+    @supports (color: color-mix(in lab, red, red)) {
+      .hover\:bg-\[var\(--tdc-rose-light\)\]\/20:hover {
+        background-color: color-mix(in oklab, var(--tdc-rose-light) 20%, transparent);
+      }
+    }
+  }
+
+  @media (hover: hover) {
+    .hover\:bg-\[var\(--tdc-rose-light\)\]\/30:hover {
+      background-color: var(--tdc-rose-light);
+    }
+
+    @supports (color: color-mix(in lab, red, red)) {
+      .hover\:bg-\[var\(--tdc-rose-light\)\]\/30:hover {
+        background-color: color-mix(in oklab, var(--tdc-rose-light) 30%, transparent);
+      }
     }
   }
 
@@ -1738,6 +1778,22 @@ body {
   background: var(--tdc-bg);
   color: var(--tdc-text);
   font-family: var(--font-geist-sans), Arial, Helvetica, sans-serif;
+}
+
+@keyframes fade-in {
+  from {
+    opacity: 0;
+    transform: scale(.96)translateY(8px);
+  }
+
+  to {
+    opacity: 1;
+    transform: scale(1)translateY(0);
+  }
+}
+
+.animate-fade-in {
+  animation: .25s ease-out forwards fade-in;
 }
 
 @property --tw-translate-x {

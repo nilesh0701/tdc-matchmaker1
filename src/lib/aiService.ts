@@ -1,3 +1,4 @@
+import { GoogleGenerativeAI } from '@google/generative-ai';
 import { Profile } from './matchingEngine';
 
 function getAge(dob: string): number {
@@ -14,7 +15,11 @@ function buildAlgorithmicIntro(
   return `${customer.firstName} and ${match.firstName} display an exceptional alignment score of ${score}%. Both reside in prominent urban hubs, share complementary outlooks on family structures (${customer.familyType} vs ${match.familyType}), and fully align on core daily preferences like a ${customer.diet} diet. Their parallel career milestones make this a premier recommendation.`;
 }
 
-function buildPrompt(customer: Profile, match: Profile, score: number): string {
+export function buildPrompt(
+  customer: Profile,
+  match: Profile,
+  score: number
+): string {
   return `You are an expert Indian matchmaker writing a highly personalized compatibility note.
     Customer: ${customer.firstName}, ${getAge(customer.dateOfBirth)}yo, ${customer.city}, ${customer.designation} at ${customer.company}, ${customer.religion}, diet: ${customer.diet}, wants kids: ${customer.wantKids}, relocate: ${customer.openToRelocate}, family type: ${customer.familyType}
     Match: ${match.firstName}, ${getAge(match.dateOfBirth)}yo, ${match.city}, ${match.designation} at ${match.company}, ${match.religion}, diet: ${match.diet}, wants kids: ${match.wantKids}, relocate: ${match.openToRelocate}, family type: ${match.familyType}
@@ -28,33 +33,27 @@ export async function generateMatchIntro(
   match: Profile,
   score: number
 ): Promise<string> {
-  if (
-    !process.env.ANTHROPIC_API_KEY ||
-    process.env.ANTHROPIC_API_KEY.includes('your-key')
-  ) {
+  const apiKey = process.env.GEMINI_API_KEY;
+
+  if (!apiKey || apiKey.includes('your-key')) {
     return buildAlgorithmicIntro(customer, match, score);
   }
 
-  const response = await fetch('https://api.anthropic.com/v1/messages', {
-    method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-      'x-api-key': process.env.ANTHROPIC_API_KEY,
-      'anthropic-version': '2023-06-01',
-    },
-    body: JSON.stringify({
-      model: 'claude-sonnet-4-20250514',
-      max_tokens: 150,
-      messages: [{ role: 'user', content: buildPrompt(customer, match, score) }],
-    }),
-  });
+  try {
+    const genAI = new GoogleGenerativeAI(apiKey);
+    const model = genAI.getGenerativeModel({ model: 'gemini-1.5-flash' });
+    const result = await model.generateContent(buildPrompt(customer, match, score));
+    const text = result.response.text();
 
-  if (!response.ok) {
-    throw new Error('Anthropic API execution error');
+    if (!text?.trim()) {
+      throw new Error('Gemini returned an empty response');
+    }
+
+    return text.trim();
+  } catch (error) {
+    console.error('Gemini API error:', error);
+    throw error;
   }
-
-  const data = await response.json();
-  return data.content[0].text;
 }
 
 export function getAlgorithmicIntro(

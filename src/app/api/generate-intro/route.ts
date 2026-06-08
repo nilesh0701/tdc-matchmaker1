@@ -6,8 +6,8 @@ export async function POST(req: NextRequest) {
     const { customer, match, score } = await req.json();
 
     if (
-      !process.env.ANTHROPIC_API_KEY ||
-      process.env.ANTHROPIC_API_KEY.includes('your-key')
+      !process.env.GEMINI_API_KEY ||
+      process.env.GEMINI_API_KEY.includes('your-key')
     ) {
       return NextResponse.json({
         intro: getAlgorithmicIntro(customer, match, score),

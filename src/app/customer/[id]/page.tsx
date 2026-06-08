@@ -71,6 +71,8 @@ export default function CustomerDetailPage() {
   const [loadingAi, setLoadingAi] = useState<Record<string, boolean>>({});
   const [selectedMatch, setSelectedMatch] = useState<MatchResult | null>(null);
   const [toastMessage, setToastMessage] = useState("");
+  const [showAdvancedSpecs, setShowAdvancedSpecs] = useState(false);
+  const [openMatrixIds, setOpenMatrixIds] = useState<Record<string, boolean>>({});
 
   useEffect(() => {
     const unsub = onAuthStateChanged(auth, (user) => {
@@ -199,24 +201,37 @@ export default function CustomerDetailPage() {
                   label="Religion"
                   value={`${customer.religion} · ${customer.caste}`}
                 />
-                <ProfileField label="Mother Tongue" value={customer.motherTongue} />
-                <ProfileField label="Languages" value={customer.languages.join(", ")} />
-                <ProfileField label="Diet" value={customer.diet.replace("_", " ")} />
-                <ProfileField label="Family Type" value={customer.familyType} />
-                <ProfileField
-                  label="Manglik Status"
-                  value={customer.manglik ? "Yes" : "No"}
-                />
-                <ProfileField label="Siblings" value={customer.siblings} />
-                <ProfileField label="Want Kids" value={customer.wantKids} />
-                <ProfileField label="Open to Relocate" value={customer.openToRelocate} />
-                <ProfileField label="Open to Pets" value={customer.openToPets} />
-                <ProfileField label="Email" value={customer.email} />
-                <ProfileField label="Phone" value={customer.phone} />
-                <ProfileField
-                  label="Marital Status"
-                  value={customer.maritalStatus.replace("_", " ")}
-                />
+
+                <button
+                  type="button"
+                  onClick={() => setShowAdvancedSpecs((prev) => !prev)}
+                  className="mt-2 w-full rounded-lg border border-dashed border-[var(--tdc-border)] py-2 text-left text-sm font-medium text-[var(--tdc-rose)] transition hover:border-[var(--tdc-rose)] hover:bg-[var(--tdc-rose-light)]/30"
+                  aria-expanded={showAdvancedSpecs}
+                >
+                  {showAdvancedSpecs
+                    ? "− Hide Advanced Specifications"
+                    : "+ View Advanced Specifications"}
+                </button>
+
+                <div
+                  className="grid transition-all duration-300 ease-in-out"
+                  style={{ gridTemplateRows: showAdvancedSpecs ? "1fr" : "0fr" }}
+                >
+                  <div className="overflow-hidden">
+                    <div
+                      className={`transition-opacity duration-300 ${showAdvancedSpecs ? "opacity-100" : "opacity-0"}`}
+                    >
+                      <ProfileField label="Mother Tongue" value={customer.motherTongue} />
+                      <ProfileField label="Languages" value={customer.languages.join(", ")} />
+                      <ProfileField label="Diet" value={customer.diet.replace("_", " ")} />
+                      <ProfileField label="Family Type" value={customer.familyType} />
+                      <ProfileField
+                        label="Manglik Status"
+                        value={customer.manglik ? "Yes" : "No"}
+                      />
+                    </div>
+                  </div>
+                </div>
               </div>
             </div>
 
@@ -236,88 +251,126 @@ export default function CustomerDetailPage() {
             </h3>
 
             <div className="mt-4 space-y-4">
-              {matches.map((match) => (
-                <div
-                  key={match.profile.id}
-                  className="rounded-xl border border-[var(--tdc-border)] bg-[var(--tdc-surface)] p-5 shadow-sm transition-all duration-300 ease-in-out hover:-translate-y-0.5 hover:border-gray-300 hover:shadow-lg"
-                >
-                  <div className="flex items-start justify-between gap-4">
-                    <div className="flex items-start gap-3">
-                      <div
-                        className={`flex h-11 w-11 shrink-0 items-center justify-center rounded-full text-sm font-semibold text-white ${getAvatarColor(match.profile.firstName)}`}
-                      >
-                        {getInitials(match.profile.firstName, match.profile.lastName)}
+              {matches.map((match) => {
+                const matrixOpen = !!openMatrixIds[match.profile.id];
+                return (
+                  <div
+                    key={match.profile.id}
+                    className="flex flex-col rounded-xl border border-[var(--tdc-border)] bg-[var(--tdc-surface)] p-5 shadow-sm transition-all duration-300 ease-in-out hover:-translate-y-0.5 hover:border-gray-300 hover:shadow-lg"
+                  >
+                    <div className="flex items-start justify-between gap-4">
+                      <div className="flex items-start gap-3">
+                        <div
+                          className={`flex h-11 w-11 shrink-0 items-center justify-center rounded-full text-sm font-semibold text-white ${getAvatarColor(match.profile.firstName)}`}
+                        >
+                          {getInitials(match.profile.firstName, match.profile.lastName)}
+                        </div>
+                        <div>
+                          <h4 className="font-bold text-[var(--tdc-text)]">
+                            {match.profile.firstName} {match.profile.lastName}
+                            <span className="font-normal text-[var(--tdc-muted)]">
+                              {" "}
+                              · {getAge(match.profile.dateOfBirth)}
+                            </span>
+                          </h4>
+                          <p className="text-sm text-[var(--tdc-muted)]">
+                            {match.profile.city}
+                          </p>
+                          <p className="text-sm capitalize text-[var(--tdc-muted)]">
+                            {match.profile.designation} @ {match.profile.company}
+                          </p>
+                        </div>
+                      </div>
+                      <CompatibilityBar score={match.score} tier={match.tier} />
+                    </div>
+
+                    <div className="mt-4 grid grid-cols-2 gap-3 rounded-lg bg-[var(--tdc-bg)] p-3 text-sm sm:grid-cols-4">
+                      <div>
+                        <span className="block text-xs text-[var(--tdc-muted)]">Religion</span>
+                        <span className="font-medium">{match.profile.religion}</span>
                       </div>
                       <div>
-                        <h4 className="font-bold text-[var(--tdc-text)]">
-                          {match.profile.firstName} {match.profile.lastName}
-                          <span className="font-normal text-[var(--tdc-muted)]">
-                            {" "}
-                            · {getAge(match.profile.dateOfBirth)}
-                          </span>
-                        </h4>
-                        <p className="text-sm text-[var(--tdc-muted)]">
-                          {match.profile.city}
-                        </p>
-                        <p className="text-sm capitalize text-[var(--tdc-muted)]">
-                          {match.profile.designation} @ {match.profile.company}
-                        </p>
+                        <span className="block text-xs text-[var(--tdc-muted)]">Diet</span>
+                        <span className="font-medium capitalize">
+                          {match.profile.diet.replace("_", " ")}
+                        </span>
+                      </div>
+                      <div>
+                        <span className="block text-xs text-[var(--tdc-muted)]">Income</span>
+                        <span className="font-medium">{formatIncome(match.profile.income)}</span>
+                      </div>
+                      <div>
+                        <span className="block text-xs text-[var(--tdc-muted)]">Relocation</span>
+                        <span className="font-medium capitalize">
+                          {match.profile.openToRelocate}
+                        </span>
                       </div>
                     </div>
-                    <CompatibilityBar score={match.score} tier={match.tier} />
-                  </div>
 
-                  <div className="mt-4 grid grid-cols-2 gap-3 rounded-lg bg-[var(--tdc-bg)] p-3 text-sm sm:grid-cols-4">
-                    <div>
-                      <span className="block text-xs text-[var(--tdc-muted)]">Religion</span>
-                      <span className="font-medium">{match.profile.religion}</span>
-                    </div>
-                    <div>
-                      <span className="block text-xs text-[var(--tdc-muted)]">Diet</span>
-                      <span className="font-medium capitalize">
-                        {match.profile.diet.replace("_", " ")}
-                      </span>
-                    </div>
-                    <div>
-                      <span className="block text-xs text-[var(--tdc-muted)]">Income</span>
-                      <span className="font-medium">{formatIncome(match.profile.income)}</span>
-                    </div>
-                    <div>
-                      <span className="block text-xs text-[var(--tdc-muted)]">Relocation</span>
-                      <span className="font-medium capitalize">
-                        {match.profile.openToRelocate}
-                      </span>
-                    </div>
-                  </div>
-
-                  <WeightingMatrix
-                    breakdown={match.breakdown}
-                    dimensionMax={dimensionMax}
-                  />
-
-                  {aiIntros[match.profile.id] && (
-                    <div className="mt-4 rounded-r-lg border-l-4 border-[var(--tdc-rose)] bg-[var(--tdc-rose-light)]/50 p-3 text-sm text-[var(--tdc-text)]">
-                      {aiIntros[match.profile.id]}
-                    </div>
-                  )}
-
-                  <div className="mt-4 flex flex-wrap gap-2">
                     <button
-                      onClick={() => generateAiNote(match)}
-                      disabled={loadingAi[match.profile.id]}
-                      className="rounded-lg border border-[var(--tdc-border)] px-4 py-2 text-sm font-medium text-[var(--tdc-text)] transition hover:bg-[var(--tdc-rose-light)] disabled:opacity-50"
+                      type="button"
+                      onClick={() =>
+                        setOpenMatrixIds((prev) => ({
+                          ...prev,
+                          [match.profile.id]: !prev[match.profile.id],
+                        }))
+                      }
+                      className="mt-3 flex w-full items-center justify-between rounded-lg border border-[var(--tdc-border)] bg-[var(--tdc-bg)] px-4 py-2.5 text-left text-sm font-medium text-[var(--tdc-text)] transition hover:border-[var(--tdc-rose)] hover:bg-[var(--tdc-rose-light)]/20"
+                      aria-expanded={matrixOpen}
                     >
-                      {loadingAi[match.profile.id] ? "Generating..." : "Generate AI note"}
+                      <span>
+                        {matrixOpen
+                          ? "Hide Score Breakdown Matrix & Weights"
+                          : "Show Score Breakdown Matrix & Weights"}
+                      </span>
+                      <span
+                        className={`text-[var(--tdc-rose)] transition-transform duration-300 ${matrixOpen ? "rotate-180" : ""}`}
+                      >
+                        ▾
+                      </span>
                     </button>
-                    <button
-                      onClick={() => setSelectedMatch(match)}
-                      className="rounded-lg bg-[var(--tdc-rose)] px-4 py-2 text-sm font-medium text-white transition hover:bg-[var(--tdc-rose-dark)]"
+
+                    <div
+                      className="grid transition-all duration-300 ease-in-out"
+                      style={{ gridTemplateRows: matrixOpen ? "1fr" : "0fr" }}
                     >
-                      Send match
-                    </button>
+                      <div className="overflow-hidden">
+                        <div
+                          className={`transition-opacity duration-300 ${matrixOpen ? "opacity-100" : "opacity-0"}`}
+                        >
+                          <WeightingMatrix
+                            breakdown={match.breakdown}
+                            dimensionMax={dimensionMax}
+                            embedded
+                          />
+                        </div>
+                      </div>
+                    </div>
+
+                    {aiIntros[match.profile.id] && (
+                      <div className="mt-4 rounded-r-lg border-l-4 border-[var(--tdc-rose)] bg-[var(--tdc-rose-light)]/50 p-3 text-sm text-[var(--tdc-text)]">
+                        {aiIntros[match.profile.id]}
+                      </div>
+                    )}
+
+                    <div className="mt-auto flex flex-wrap gap-2 pt-4">
+                      <button
+                        onClick={() => generateAiNote(match)}
+                        disabled={loadingAi[match.profile.id]}
+                        className="rounded-lg border border-[var(--tdc-border)] px-4 py-2 text-sm font-medium text-[var(--tdc-text)] transition hover:bg-[var(--tdc-rose-light)] disabled:opacity-50"
+                      >
+                        {loadingAi[match.profile.id] ? "Generating..." : "Generate AI note"}
+                      </button>
+                      <button
+                        onClick={() => setSelectedMatch(match)}
+                        className="rounded-lg bg-[var(--tdc-rose)] px-4 py-2 text-sm font-medium text-white transition hover:bg-[var(--tdc-rose-dark)]"
+                      >
+                        Send match
+                      </button>
+                    </div>
                   </div>
-                </div>
-              ))}
+                );
+              })}
             </div>
           </div>
         </div>

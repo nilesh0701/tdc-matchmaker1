@@ -15,12 +15,14 @@ function scoreRowClass(value: number, max: number): string {
 export default function WeightingMatrix({
   breakdown,
   dimensionMax,
+  embedded = false,
 }: {
   breakdown: Record<string, number>;
   dimensionMax: Record<string, number>;
+  embedded?: boolean;
 }) {
   return (
-    <div className="mt-5">
+    <div className={embedded ? "" : "mt-5"}>
       <p className="mb-3 text-xs font-semibold uppercase tracking-wider text-[var(--tdc-muted)]">
         Compatibility weighting matrix
       </p>
