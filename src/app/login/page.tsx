@@ -5,6 +5,15 @@ import { signInWithEmailAndPassword } from "firebase/auth";
 import { auth } from "@/lib/firebase";
 import { useRouter } from "next/navigation";
 
+function TdcLogo({ size = 48 }: { size?: number }) {
+  return (
+    <svg width={size} height={size} viewBox="0 0 48 48" fill="none" aria-hidden>
+      <circle cx="20" cy="24" r="14" fill="#C2185B" opacity="0.85" />
+      <circle cx="28" cy="24" r="14" fill="#C2185B" opacity="0.55" />
+    </svg>
+  );
+}
+
 export default function LoginPage() {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
@@ -20,34 +29,35 @@ export default function LoginPage() {
     try {
       await signInWithEmailAndPassword(auth, email, password);
       router.push("/dashboard");
-    } catch (err: any) {
-      setError("Authentication failed. Please verify management access credentials.");
+    } catch {
+      setError("Invalid email or password. Please try again.");
     } finally {
       setLoading(false);
     }
   };
 
   return (
-    <div className="flex min-h-screen items-center justify-center bg-gray-50 px-4">
-      <div className="w-full max-w-md space-y-6 rounded-xl bg-white p-8 border border-gray-200 shadow-sm">
-        <div className="text-center">
-          <h2 className="text-3xl font-bold tracking-tight text-gray-900">The Date Crew</h2>
-          <p className="mt-2 text-sm text-gray-500">Internal Matchmaker Administration Platform</p>
+    <div className="flex min-h-screen items-center justify-center bg-[var(--tdc-bg)] px-4">
+      <div className="w-full max-w-md space-y-6 rounded-2xl border border-[var(--tdc-border)] bg-[var(--tdc-surface)] p-8 shadow-sm">
+        <div className="flex flex-col items-center text-center">
+          <TdcLogo />
+          <h2 className="mt-4 text-2xl font-bold text-[var(--tdc-text)]">The Date Crew</h2>
+          <p className="mt-1 text-sm text-[var(--tdc-muted)]">Welcome back</p>
         </div>
-        
+
         <form className="space-y-4" onSubmit={handleLogin}>
           {error && (
-            <div className="rounded-lg bg-red-50 p-3 text-xs font-medium text-red-700 border border-red-100">
+            <div className="rounded-lg border border-red-100 bg-red-50 p-3 text-sm text-red-700">
               {error}
             </div>
           )}
-          
+
           <div>
-            <label className="block text-xs font-semibold uppercase tracking-wider text-gray-600">Operator Email</label>
+            <label className="block text-sm font-medium text-[var(--tdc-text)]">Email</label>
             <input
               type="email"
               required
-              className="mt-1 block w-full rounded-md border border-gray-300 px-3 py-2 text-gray-900 text-sm focus:border-black focus:outline-none focus:ring-1 focus:ring-black"
+              className="mt-1 block w-full rounded-lg border border-[var(--tdc-border)] px-3 py-2.5 text-sm text-[var(--tdc-text)] focus:border-[var(--tdc-rose)] focus:outline-none focus:ring-1 focus:ring-[var(--tdc-rose)]"
               placeholder="matchmaker@tdc.com"
               value={email}
               onChange={(e) => setEmail(e.target.value)}
@@ -55,11 +65,11 @@ export default function LoginPage() {
           </div>
 
           <div>
-            <label className="block text-xs font-semibold uppercase tracking-wider text-gray-600">Access Key</label>
+            <label className="block text-sm font-medium text-[var(--tdc-text)]">Password</label>
             <input
               type="password"
               required
-              className="mt-1 block w-full rounded-md border border-gray-300 px-3 py-2 text-gray-900 text-sm focus:border-black focus:outline-none focus:ring-1 focus:ring-black"
+              className="mt-1 block w-full rounded-lg border border-[var(--tdc-border)] px-3 py-2.5 text-sm text-[var(--tdc-text)] focus:border-[var(--tdc-rose)] focus:outline-none focus:ring-1 focus:ring-[var(--tdc-rose)]"
               placeholder="••••••••"
               value={password}
               onChange={(e) => setPassword(e.target.value)}
@@ -69,15 +79,15 @@ export default function LoginPage() {
           <button
             type="submit"
             disabled={loading}
-            className="w-full rounded-md bg-black px-4 py-2 text-sm font-medium text-white hover:bg-gray-800 transition disabled:bg-gray-400"
+            className="w-full rounded-lg bg-[var(--tdc-rose)] px-4 py-2.5 text-sm font-medium text-white transition hover:bg-[var(--tdc-rose-dark)] disabled:opacity-50"
           >
-            {loading ? "Authorizing Operator System..." : "Authenticate Session"}
+            {loading ? "Signing in..." : "Sign in"}
           </button>
         </form>
 
-        <div className="rounded-lg bg-gray-50 p-4 border border-gray-200">
-          <span className="block text-xs font-bold uppercase tracking-wider text-gray-500 mb-1">Demo Access Profile</span>
-          <div className="text-xs text-gray-600 space-y-0.5">
+        <div className="rounded-lg border border-[var(--tdc-border)] bg-[var(--tdc-rose-light)]/40 p-4">
+          <span className="block text-xs font-semibold text-[var(--tdc-muted)]">Demo credentials</span>
+          <div className="mt-1 space-y-0.5 text-sm text-[var(--tdc-text)]">
             <div><strong>User:</strong> matchmaker@tdc.com</div>
             <div><strong>Pass:</strong> tdc2024</div>
           </div>

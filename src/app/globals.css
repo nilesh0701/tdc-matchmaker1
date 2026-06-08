@@ -3,6 +3,14 @@
 :root {
   --background: #ffffff;
   --foreground: #171717;
+  --tdc-rose: #C2185B;
+  --tdc-rose-light: #FCE4EC;
+  --tdc-rose-dark: #880E4F;
+  --tdc-bg: #FFF8F9;
+  --tdc-surface: #FFFFFF;
+  --tdc-border: #F8BBD0;
+  --tdc-text: #1A1A1A;
+  --tdc-muted: #757575;
 }
 
 @theme inline {
@@ -12,15 +20,8 @@
   --font-mono: var(--font-geist-mono);
 }
 
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
-  }
-}
-
 body {
-  background: var(--background);
-  color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
+  background: var(--tdc-bg);
+  color: var(--tdc-text);
+  font-family: var(--font-geist-sans), Arial, Helvetica, sans-serif;
 }

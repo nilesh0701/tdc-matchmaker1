@@ -1,71 +1,136 @@
 "use client";
 
+import { useEffect, useState } from "react";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
+import { signOut, onAuthStateChanged } from "firebase/auth";
+import { auth } from "@/lib/firebase";
 import customersData from "@/data/customers.json";
+import StatusBadge from "@/components/StatusBadge";
+import { getAge, getAvatarColor, getInitials } from "@/lib/avatarUtils";
+import type { Profile } from "@/lib/matchingEngine";
 
-function getAge(dob: string) {
-  return Math.floor((Date.now() - new Date(dob).getTime()) / (1000 * 60 * 60 * 24 * 365.25));
+function TdcLogo({ size = 32 }: { size?: number }) {
+  return (
+    <svg width={size} height={size} viewBox="0 0 48 48" fill="none" aria-hidden>
+      <circle cx="20" cy="24" r="14" fill="#C2185B" opacity="0.85" />
+      <circle cx="28" cy="24" r="14" fill="#C2185B" opacity="0.55" />
+    </svg>
+  );
 }
 
 export default function DashboardPage() {
+  const router = useRouter();
+  const [userEmail, setUserEmail] = useState<string | null>(null);
+
+  useEffect(() => {
+    const unsub = onAuthStateChanged(auth, (user) => {
+      if (!user) {
+        router.push("/login");
+      } else {
+        setUserEmail(user.email ?? null);
+      }
+    });
+    return () => unsub();
+  }, [router]);
+
+  const handleSignOut = async () => {
+    await signOut(auth);
+    router.push("/login");
+  };
+
+  const customers = customersData as Profile[];
+  const activeCount = customers.filter((c) => c.status === "active").length;
+  const onHoldCount = customers.filter((c) => c.status === "on_hold").length;
+  const pausedCount = customers.filter((c) => c.status === "paused").length;
+
   return (
-    <div className="min-h-screen bg-gray-50 p-6 font-sans">
-      <div className="mx-auto max-w-6xl">
-        <div className="mb-6 flex flex-col sm:flex-row sm:items-center sm:justify-between border-b border-gray-200 pb-5">
-          <div>
-            <h1 className="text-2xl font-bold tracking-tight text-gray-900">Client Control Matrix</h1>
-            <p className="text-xs text-gray-500">Select a verified account folder to initiate search engine matching arrays.</p>
+    <div className="min-h-screen bg-[var(--tdc-bg)]">
+      <header className="border-b border-[var(--tdc-border)] bg-[var(--tdc-surface)]">
+        <div className="mx-auto flex max-w-5xl items-center justify-between px-6 py-4">
+          <div className="flex items-center gap-3">
+            <TdcLogo />
+            <span className="text-sm font-semibold text-[var(--tdc-text)]">
+              Matchmaker Dashboard
+            </span>
+          </div>
+          <div className="flex items-center gap-4">
+            {userEmail && (
+              <span className="hidden text-sm text-[var(--tdc-muted)] sm:inline">
+                {userEmail}
+              </span>
+            )}
+            <button
+              onClick={handleSignOut}
+              className="rounded-lg border border-[var(--tdc-border)] px-3 py-1.5 text-sm font-medium text-[var(--tdc-text)] transition hover:bg-[var(--tdc-rose-light)]"
+            >
+              Sign out
+            </button>
+          </div>
+        </div>
+      </header>
+
+      <main className="mx-auto max-w-5xl px-6 py-8">
+        <div className="mb-8">
+          <h1 className="text-2xl font-bold text-[var(--tdc-text)]">My Clients</h1>
+          <p className="mt-1 text-sm text-[var(--tdc-muted)]">
+            Select a client to find their best matches
+          </p>
+        </div>
+
+        <div className="mb-8 grid grid-cols-1 gap-4 sm:grid-cols-3">
+          <div className="rounded-xl border border-[var(--tdc-border)] bg-[var(--tdc-surface)] p-4 shadow-sm">
+            <p className="text-sm text-[var(--tdc-muted)]">Active clients</p>
+            <p className="mt-1 text-2xl font-bold text-green-700">{activeCount}</p>
+          </div>
+          <div className="rounded-xl border border-[var(--tdc-border)] bg-[var(--tdc-surface)] p-4 shadow-sm">
+            <p className="text-sm text-[var(--tdc-muted)]">On hold</p>
+            <p className="mt-1 text-2xl font-bold text-amber-600">{onHoldCount}</p>
+          </div>
+          <div className="rounded-xl border border-[var(--tdc-border)] bg-[var(--tdc-surface)] p-4 shadow-sm">
+            <p className="text-sm text-[var(--tdc-muted)]">Paused</p>
+            <p className="mt-1 text-2xl font-bold text-[var(--tdc-muted)]">{pausedCount}</p>
           </div>
         </div>
 
-        <div className="overflow-hidden rounded-xl bg-white border border-gray-200 shadow-sm">
-          <table className="min-w-full divide-y divide-gray-200">
-            <thead className="bg-gray-50">
-              <tr>
-                <th className="px-6 py-3 text-left text-xs font-semibold uppercase tracking-wider text-gray-500">Client Profile</th>
-                <th className="px-6 py-3 text-left text-xs font-semibold uppercase tracking-wider text-gray-500">Location Context</th>
-                <th className="px-6 py-3 text-left text-xs font-semibold uppercase tracking-wider text-gray-500">Matrimonial Stage</th>
-                <th className="px-6 py-3 text-left text-xs font-semibold uppercase tracking-wider text-gray-500">Pipeline Status</th>
-                <th className="relative px-6 py-3 text-right text-xs font-semibold uppercase tracking-wider text-gray-500">Action</th>
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-gray-200 bg-white text-sm">
-              {customersData.map((customer) => (
-                <tr key={customer.id} className="hover:bg-gray-50/70 transition">
-                  <td className="px-6 py-4 whitespace-nowrap">
-                    <div className="font-semibold text-gray-900">{customer.firstName} {customer.lastName}</div>
-                    <div className="text-xs text-gray-400 capitalize">{customer.gender} • {getAge(customer.dateOfBirth)} yrs</div>
-                  </td>
-                  <td className="px-6 py-4 whitespace-nowrap text-gray-600">
-                    <div>{customer.city}</div>
-                    <div className="text-xs text-gray-400">{customer.country}</div>
-                  </td>
-                  <td className="px-6 py-4 whitespace-nowrap text-gray-500 capitalize">
+        <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
+          {customers.map((customer) => (
+            <div
+              key={customer.id}
+              className="flex items-start gap-4 rounded-xl border border-[var(--tdc-border)] bg-[var(--tdc-surface)] p-5 shadow-sm transition hover:shadow-md"
+            >
+              <div
+                className={`flex h-11 w-11 shrink-0 items-center justify-center rounded-full text-sm font-semibold text-white ${getAvatarColor(customer.firstName)}`}
+              >
+                {getInitials(customer.firstName, customer.lastName)}
+              </div>
+
+              <div className="min-w-0 flex-1">
+                <p className="text-[15px] font-bold text-[var(--tdc-text)]">
+                  {customer.firstName} {customer.lastName}
+                </p>
+                <p className="text-sm text-[var(--tdc-muted)]">
+                  {getAge(customer.dateOfBirth)} · {customer.city}
+                </p>
+
+                <div className="mt-3 flex flex-wrap items-center gap-2">
+                  <StatusBadge status={customer.status} />
+                  <span className="rounded-full bg-[var(--tdc-rose-light)] px-2.5 py-0.5 text-xs capitalize text-[var(--tdc-rose-dark)]">
                     {customer.maritalStatus.replace("_", " ")}
-                  </td>
-                  <td className="px-6 py-4 whitespace-nowrap">
-                    <span className={`inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-medium tracking-wide border ${
-                      customer.status === "active" ? "bg-green-50 text-green-700 border-green-200" :
-                      customer.status === "on_hold" ? "bg-yellow-50 text-yellow-700 border-yellow-200" :
-                      "bg-gray-50 text-gray-700 border-gray-200"
-                    }`}>
-                      {customer.status.replace("_", " ")}
-                    </span>
-                  </td>
-                  <td className="px-6 py-4 whitespace-nowrap text-right font-medium">
-                    <Link 
-                      href={`/customer/${customer.id}`} 
-                      className="inline-flex rounded bg-black px-3 py-1.5 text-xs font-medium text-white hover:bg-gray-800 transition"
-                    >
-                      Process Matches
-                    </Link>
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
+                  </span>
+                </div>
+
+                <Link
+                  href={`/customer/${customer.id}`}
+                  className="mt-4 inline-flex rounded-lg bg-[var(--tdc-rose)] px-4 py-2 text-sm font-medium text-white transition hover:bg-[var(--tdc-rose-dark)]"
+                >
+                  Find Matches
+                </Link>
+              </div>
+            </div>
+          ))}
         </div>
-      </div>
+      </main>
     </div>
   );
 }

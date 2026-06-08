@@ -1,194 +1,371 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { useParams } from "next/navigation";
+import { useParams, useRouter } from "next/navigation";
 import Link from "next/link";
-import { doc, getDoc, setDoc } from "firebase/firestore";
-import { db } from "@/lib/firebase";
+import { doc, getDoc } from "firebase/firestore";
+import { onAuthStateChanged } from "firebase/auth";
+import { auth, db } from "@/lib/firebase";
 import { findMatches, Profile, MatchResult } from "@/lib/matchingEngine";
+import NotesEditor from "@/components/NotesEditor";
+import {
+  getAge,
+  getAvatarColor,
+  getInitials,
+  formatIncome,
+} from "@/lib/avatarUtils";
 
 import customersData from "@/data/customers.json";
 import poolData from "@/data/pool.json";
 
+const MALE_DIMENSION_MAX: Record<string, number> = {
+  age: 20,
+  income: 15,
+  height: 10,
+  kids: 20,
+  religion: 10,
+  diet: 10,
+  language: 15,
+};
+
+const FEMALE_DIMENSION_MAX: Record<string, number> = {
+  age: 15,
+  relocation: 20,
+  familyType: 15,
+  kids: 15,
+  income: 10,
+  religion: 10,
+  language: 15,
+};
+
+function formatLabel(key: string): string {
+  return key
+    .replace(/([A-Z])/g, " $1")
+    .replace(/^./, (s) => s.toUpperCase());
+}
+
+function scoreBadgeClass(score: number): string {
+  if (score >= 70) return "bg-green-50 text-green-700 border-green-200";
+  if (score >= 45) return "bg-blue-50 text-blue-700 border-blue-200";
+  return "bg-orange-50 text-orange-700 border-orange-200";
+}
+
+function ProfileField({
+  label,
+  value,
+}: {
+  label: string;
+  value: string | number;
+}) {
+  return (
+    <div className="flex justify-between gap-4 border-b border-[var(--tdc-border)]/50 py-2 last:border-0">
+      <span className="text-sm text-[var(--tdc-muted)]">{label}</span>
+      <span className="text-right text-sm font-medium capitalize text-[var(--tdc-text)]">
+        {value}
+      </span>
+    </div>
+  );
+}
+
+function ScoreBreakdown({
+  breakdown,
+  dimensionMax,
+}: {
+  breakdown: Record<string, number>;
+  dimensionMax: Record<string, number>;
+}) {
+  return (
+    <div className="mt-4">
+      <p className="mb-2 text-xs font-semibold uppercase tracking-wide text-[var(--tdc-muted)]">
+        Why this match
+      </p>
+      <div className="space-y-2">
+        {Object.entries(breakdown).map(([key, value]) => {
+          const max = dimensionMax[key] ?? 20;
+          const pct = max > 0 ? (value / max) * 100 : 0;
+          return (
+            <div key={key}>
+              <div className="mb-0.5 flex justify-between text-xs">
+                <span className="text-[var(--tdc-muted)]">{formatLabel(key)}</span>
+                <span className="font-medium text-[var(--tdc-text)]">
+                  {value}/{max}
+                </span>
+              </div>
+              <div className="h-1.5 overflow-hidden rounded-full bg-[var(--tdc-rose-light)]">
+                <div
+                  className="h-full rounded-full bg-[var(--tdc-rose)] transition-all"
+                  style={{ width: `${pct}%` }}
+                />
+              </div>
+            </div>
+          );
+        })}
+      </div>
+    </div>
+  );
+}
+
 export default function CustomerDetailPage() {
   const { id } = useParams();
-  
+  const router = useRouter();
+
   const customer = (customersData as Profile[]).find((c) => c.id === id);
   const pool = poolData as Profile[];
 
   const [matches, setMatches] = useState<MatchResult[]>([]);
   const [notes, setNotes] = useState("");
-  const [savingNotes, setSavingNotes] = useState(false);
+  const [notesLoaded, setNotesLoaded] = useState(false);
   const [aiIntros, setAiIntros] = useState<Record<string, string>>({});
   const [loadingAi, setLoadingAi] = useState<Record<string, boolean>>({});
   const [selectedMatch, setSelectedMatch] = useState<MatchResult | null>(null);
   const [toastMessage, setToastMessage] = useState("");
 
   useEffect(() => {
-    if (customer) {
-      setMatches(findMatches(customer, pool));
-      
-      const syncInternalNotes = async () => {
-        try {
-          const folderReference = doc(db, "notes", customer.id);
-          const dataSnapshot = await getDoc(folderReference);
-          if (dataSnapshot.exists()) {
-            setNotes(dataSnapshot.data().text || "");
-          } else {
-            setNotes(customer.notes || "");
-          }
-        } catch (e) {
+    const unsub = onAuthStateChanged(auth, (user) => {
+      if (!user) router.push("/login");
+    });
+    return () => unsub();
+  }, [router]);
+
+  useEffect(() => {
+    if (!customer) return;
+
+    setMatches(findMatches(customer, pool));
+
+    const loadNotes = async () => {
+      try {
+        const notesRef = doc(db, "notes", customer.id);
+        const snapshot = await getDoc(notesRef);
+        if (snapshot.exists()) {
+          setNotes(snapshot.data().text || "");
+        } else {
           setNotes(customer.notes || "");
         }
-      };
-      syncInternalNotes();
-    }
+      } catch {
+        setNotes(customer.notes || "");
+      } finally {
+        setNotesLoaded(true);
+      }
+    };
+    loadNotes();
   }, [customer, pool]);
 
-  if (!customer) {
-    return <div className="p-8 text-center text-sm font-semibold text-gray-500">Customer directory entry not found.</div>;
-  }
-
-  const handleSaveNotes = async () => {
-    setSavingNotes(true);
-    try {
-      await setDoc(doc(db, "notes", customer.id), { text: notes }, { merge: true });
-      triggerSystemToast("Firestore cluster data synchronization complete.");
-    } catch (err) {
-      triggerSystemToast("Database save operation rejected.");
-    } finally {
-      setSavingNotes(false);
-    }
+  const triggerToast = (msg: string) => {
+    setToastMessage(msg);
+    setTimeout(() => setToastMessage(""), 4000);
   };
 
-  const executeGenerationChain = async (match: MatchResult) => {
+  if (!customer) {
+    return (
+      <div className="p-8 text-center text-sm text-[var(--tdc-muted)]">
+        Client not found.
+      </div>
+    );
+  }
+
+  const dimensionMax =
+    customer.gender === "male" ? MALE_DIMENSION_MAX : FEMALE_DIMENSION_MAX;
+
+  const generateAiNote = async (match: MatchResult) => {
     setLoadingAi((prev) => ({ ...prev, [match.profile.id]: true }));
     try {
       const res = await fetch("/api/generate-intro", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ customer, match: match.profile, score: match.score }),
+        body: JSON.stringify({
+          customer,
+          match: match.profile,
+          score: match.score,
+        }),
       });
       const data = await res.json();
-      setAiIntros((prev) => ({ ...prev, [match.profile.id]: data.intro }));
-    } catch (err) {
-      setAiIntros((prev) => ({ ...prev, [match.profile.id]: "Fallback translation vector execution failure." }));
+      setAiIntros((prev) => ({
+        ...prev,
+        [match.profile.id]: data.intro || data.error,
+      }));
+    } catch {
+      setAiIntros((prev) => ({
+        ...prev,
+        [match.profile.id]: "Could not generate a note right now. Please try again.",
+      }));
     } finally {
       setLoadingAi((prev) => ({ ...prev, [match.profile.id]: false }));
     }
   };
 
-  const triggerSystemToast = (msg: string) => {
-    setToastMessage(msg);
-    setTimeout(() => setToastMessage(""), 4000);
-  };
-
   return (
-    <div className="min-h-screen bg-gray-50 p-6 text-sm text-gray-800">
+    <div className="min-h-screen bg-[var(--tdc-bg)]">
       {toastMessage && (
-        <div className="fixed bottom-6 right-6 z-50 rounded-lg bg-gray-900 border border-gray-800 px-5 py-3 text-xs font-semibold text-white shadow-xl animate-fade-in">
+        <div className="fixed bottom-6 right-6 z-50 rounded-lg bg-[var(--tdc-text)] px-5 py-3 text-sm font-medium text-white shadow-xl">
           {toastMessage}
         </div>
       )}
 
-      <div className="mx-auto max-w-7xl">
-        <Link href="/dashboard" className="text-xs font-semibold text-gray-500 hover:text-black transition tracking-wide uppercase">
-          &larr; Return to Control Grid
+      <div className="mx-auto max-w-6xl px-6 py-8">
+        <Link
+          href="/dashboard"
+          className="text-sm font-medium text-[var(--tdc-rose)] hover:text-[var(--tdc-rose-dark)]"
+        >
+          ← All clients
         </Link>
 
-        <div className="mt-4 grid grid-cols-1 gap-6 lg:grid-cols-3">
-          
-          {/* Left Column: Comprehensive Customer Dossier */}
+        <div className="mt-6 grid grid-cols-1 gap-8 lg:grid-cols-3">
+          {/* Left panel — Profile */}
           <div className="space-y-6 lg:col-span-1">
-            <div className="rounded-xl bg-white p-5 border border-gray-200 shadow-sm">
-              <span className="text-xs font-bold tracking-widest text-gray-400 uppercase">Core Dossier</span>
-              <h2 className="text-xl font-bold text-gray-900 mt-1">{customer.firstName} {customer.lastName}</h2>
-              <p className="text-xs text-gray-500 capitalize">{customer.designation} @ {customer.company}</p>
+            <div className="rounded-xl border border-[var(--tdc-border)] bg-[var(--tdc-surface)] p-6 shadow-sm">
+              <p className="text-xs font-semibold uppercase tracking-wide text-[var(--tdc-muted)]">
+                Profile
+              </p>
 
-              <div className="mt-4 space-y-2 border-t border-gray-100 pt-4 text-xs">
-                <div className="flex justify-between"><span className="text-gray-400">Net Income:</span><span className="font-medium text-gray-900"> samples ₹{(customer.income / 100000).toFixed(1)}L/yr</span></div>
-                <div className="flex justify-between"><span className="text-gray-400">Physical Height:</span><span className="font-medium text-gray-900">{customer.heightCm} cm</span></div>
-                <div className="flex justify-between"><span className="text-gray-400">Background:</span><span className="font-medium text-gray-900 text-right">{customer.degree} ({customer.college})</span></div>
-                <div className="flex justify-between"><span className="text-gray-400">Demographics:</span><span className="font-medium text-gray-900">{customer.religion} • {customer.caste}</span></div>
-                <div className="flex justify-between"><span className="text-gray-400">Diet Preference:</span><span className="font-medium text-gray-900 capitalize">{customer.diet}</span></div>
-                <div className="flex justify-between"><span className="text-gray-400">Kinship System:</span><span className="font-medium text-gray-900 capitalize">{customer.familyType}</span></div>
-                <div className="flex justify-between"><span className="text-gray-400">Manglik Status:</span><span className="font-medium text-gray-900">{customer.manglik ? "Positive" : "Negative"}</span></div>
-                <div className="flex justify-between"><span className="text-gray-400">Relocation Openness:</span><span className="font-medium text-gray-900 capitalize">{customer.openToRelocate}</span></div>
+              <div className="mt-4 flex items-center gap-4">
+                <div className="flex h-16 w-16 items-center justify-center rounded-full bg-[var(--tdc-rose)] text-lg font-semibold text-white">
+                  {getInitials(customer.firstName, customer.lastName)}
+                </div>
+                <div>
+                  <h2 className="text-xl font-bold text-[var(--tdc-text)]">
+                    {customer.firstName} {customer.lastName}
+                  </h2>
+                  <p className="text-sm capitalize text-[var(--tdc-muted)]">
+                    {customer.designation} @ {customer.company}
+                  </p>
+                </div>
+              </div>
+
+              <div className="mt-5">
+                <ProfileField label="Gender" value={customer.gender} />
+                <ProfileField label="Date of Birth" value={customer.dateOfBirth} />
+                <ProfileField label="Age" value={getAge(customer.dateOfBirth)} />
+                <ProfileField label="City" value={customer.city} />
+                <ProfileField label="Country" value={customer.country} />
+                <ProfileField label="Height" value={`${customer.heightCm} cm`} />
+                <ProfileField label="Income" value={`${formatIncome(customer.income)}/yr`} />
+                <ProfileField
+                  label="Education"
+                  value={`${customer.degree} (${customer.college})`}
+                />
+                <ProfileField
+                  label="Religion"
+                  value={`${customer.religion} · ${customer.caste}`}
+                />
+                <ProfileField label="Mother Tongue" value={customer.motherTongue} />
+                <ProfileField label="Languages" value={customer.languages.join(", ")} />
+                <ProfileField label="Diet" value={customer.diet.replace("_", " ")} />
+                <ProfileField label="Family Type" value={customer.familyType} />
+                <ProfileField
+                  label="Manglik Status"
+                  value={customer.manglik ? "Yes" : "No"}
+                />
+                <ProfileField label="Siblings" value={customer.siblings} />
+                <ProfileField label="Want Kids" value={customer.wantKids} />
+                <ProfileField label="Open to Relocate" value={customer.openToRelocate} />
+                <ProfileField label="Open to Pets" value={customer.openToPets} />
+                <ProfileField label="Email" value={customer.email} />
+                <ProfileField label="Phone" value={customer.phone} />
+                <ProfileField
+                  label="Marital Status"
+                  value={customer.maritalStatus.replace("_", " ")}
+                />
               </div>
             </div>
 
-            {/* Live Firestore Operator Workspace */}
-            <div className="rounded-xl bg-white p-5 border border-gray-200 shadow-sm">
-              <h3 className="text-xs font-bold uppercase tracking-wider text-gray-400">Operator Annotations</h3>
-              <textarea
-                className="mt-3 w-full rounded-md border border-gray-300 p-2.5 text-xs text-gray-900 focus:border-black focus:outline-none focus:ring-1 focus:ring-black"
-                rows={5}
-                value={notes}
-                onChange={(e) => setNotes(e.target.value)}
-                placeholder="Initialize custom log metrics or specific matching rules manually..."
+            {notesLoaded && (
+              <NotesEditor
+                customerId={customer.id}
+                initialValue={notes}
+                onSaved={() => triggerToast("Notes saved ✓")}
               />
-              <button
-                onClick={handleSaveNotes}
-                disabled={savingNotes}
-                className="mt-2 w-full rounded bg-black py-2 text-xs font-medium text-white hover:bg-gray-800 transition disabled:bg-gray-400"
-              >
-                {savingNotes ? "Committing Changes..." : "Push Workspace Logs"}
-              </button>
-            </div>
+            )}
           </div>
 
-          {/* Right Column: Dynamic Match Ranking Arrays */}
-          <div className="lg:col-span-2 space-y-4">
-            <h3 className="text-xs font-bold uppercase tracking-widest text-gray-400">Ranked Matching Pool Array</h3>
-            
-            <div className="space-y-4">
+          {/* Right panel — Matches */}
+          <div className="lg:col-span-2">
+            <h3 className="text-lg font-bold text-[var(--tdc-text)]">
+              Top matches for {customer.firstName}
+            </h3>
+
+            <div className="mt-4 space-y-4">
               {matches.map((match) => (
-                <div key={match.profile.id} className="rounded-xl bg-white p-5 border border-gray-200 shadow-sm hover:shadow-md transition">
-                  <div className="flex items-start justify-between">
+                <div
+                  key={match.profile.id}
+                  className="rounded-xl border border-[var(--tdc-border)] bg-[var(--tdc-surface)] p-5 shadow-sm"
+                >
+                  <div className="flex items-start justify-between gap-4">
+                    <div className="flex items-start gap-3">
+                      <div
+                        className={`flex h-11 w-11 shrink-0 items-center justify-center rounded-full text-sm font-semibold text-white ${getAvatarColor(match.profile.firstName)}`}
+                      >
+                        {getInitials(match.profile.firstName, match.profile.lastName)}
+                      </div>
+                      <div>
+                        <h4 className="font-bold text-[var(--tdc-text)]">
+                          {match.profile.firstName} {match.profile.lastName}
+                          <span className="font-normal text-[var(--tdc-muted)]">
+                            {" "}
+                            · {getAge(match.profile.dateOfBirth)}
+                          </span>
+                        </h4>
+                        <p className="text-sm text-[var(--tdc-muted)]">
+                          {match.profile.city}
+                        </p>
+                        <p className="text-sm capitalize text-[var(--tdc-muted)]">
+                          {match.profile.designation} @ {match.profile.company}
+                        </p>
+                      </div>
+                    </div>
+                    <span
+                      className={`shrink-0 rounded-full border px-2.5 py-0.5 text-xs font-semibold ${scoreBadgeClass(match.score)}`}
+                    >
+                      {match.score}% · {match.tier}
+                    </span>
+                  </div>
+
+                  <div className="mt-4 grid grid-cols-2 gap-3 rounded-lg bg-[var(--tdc-bg)] p-3 text-sm sm:grid-cols-4">
                     <div>
-                      <h4 className="text-base font-bold text-gray-900">{match.profile.firstName} {match.profile.lastName}</h4>
-                      <p className="text-xs text-gray-400 capitalize">{match.profile.city} • {match.profile.designation} at {match.profile.company}</p>
+                      <span className="block text-xs text-[var(--tdc-muted)]">Religion</span>
+                      <span className="font-medium">{match.profile.religion}</span>
                     </div>
                     <div>
-                      <span className={`inline-flex rounded-full px-2.5 py-0.5 text-xs font-bold border ${
-                        match.tier === "High Potential" ? "bg-emerald-50 text-emerald-700 border-emerald-200" :
-                        match.tier === "Good Match" ? "bg-blue-50 text-blue-700 border-blue-200" :
-                        "bg-orange-50 text-orange-700 border-orange-200"
-                      }`}>
-                        {match.score}% ({match.tier})
+                      <span className="block text-xs text-[var(--tdc-muted)]">Diet</span>
+                      <span className="font-medium capitalize">
+                        {match.profile.diet.replace("_", " ")}
+                      </span>
+                    </div>
+                    <div>
+                      <span className="block text-xs text-[var(--tdc-muted)]">Income</span>
+                      <span className="font-medium">{formatIncome(match.profile.income)}</span>
+                    </div>
+                    <div>
+                      <span className="block text-xs text-[var(--tdc-muted)]">Relocation</span>
+                      <span className="font-medium capitalize">
+                        {match.profile.openToRelocate}
                       </span>
                     </div>
                   </div>
 
-                  <div className="mt-3 grid grid-cols-2 gap-2 rounded-lg bg-gray-50 p-3 text-xs text-gray-600 sm:grid-cols-4">
-                    <div><span className="block text-[10px] uppercase font-semibold text-gray-400">Community</span>{match.profile.religion}</div>
-                    <div><span className="block text-[10px] uppercase font-semibold text-gray-400">Diet</span><span className="capitalize">{match.profile.diet}</span></div>
-                    <div><span className="block text-[10px] uppercase font-semibold text-gray-400">Income Bracket</span>₹{(match.profile.income / 100000).toFixed(1)}L</div>
-                    <div><span className="block text-[10px] uppercase font-semibold text-gray-400">Relocation</span><span className="capitalize">{match.profile.openToRelocate}</span></div>
-                  </div>
+                  <ScoreBreakdown
+                    breakdown={match.breakdown}
+                    dimensionMax={dimensionMax}
+                  />
 
-                  {aiIntros[match.profile.id] ? (
-                    <div className="mt-3 rounded-r border-l-4 border-black bg-gray-50 p-3 text-xs text-gray-700 font-medium">
-                      <span className="block text-[10px] font-bold text-gray-400 uppercase tracking-wider mb-0.5">Generated Transmission Copy</span>
+                  {aiIntros[match.profile.id] && (
+                    <div className="mt-4 rounded-r-lg border-l-4 border-[var(--tdc-rose)] bg-[var(--tdc-rose-light)]/50 p-3 text-sm text-[var(--tdc-text)]">
                       {aiIntros[match.profile.id]}
                     </div>
-                  ) : (
-                    <p className="mt-2.5 text-xs text-gray-400 italic bg-gray-50/50 p-2 rounded">Static telemetry match trace: {match.summary}</p>
                   )}
 
-                  <div className="mt-4 flex gap-2">
+                  <div className="mt-4 flex flex-wrap gap-2">
                     <button
-                      onClick={() => executeGenerationChain(match)}
+                      onClick={() => generateAiNote(match)}
                       disabled={loadingAi[match.profile.id]}
-                      className="rounded border border-gray-300 px-3 py-1.5 text-xs font-semibold text-gray-700 hover:bg-gray-50 transition disabled:opacity-40"
+                      className="rounded-lg border border-[var(--tdc-border)] px-4 py-2 text-sm font-medium text-[var(--tdc-text)] transition hover:bg-[var(--tdc-rose-light)] disabled:opacity-50"
                     >
-                      {loadingAi[match.profile.id] ? "Compiling Vector Analysis..." : "Compile AI Insight Copy"}
+                      {loadingAi[match.profile.id] ? "Generating..." : "Generate AI note"}
                     </button>
                     <button
                       onClick={() => setSelectedMatch(match)}
-                      className="rounded bg-black px-3 py-1.5 text-xs font-semibold text-white hover:bg-gray-800 transition"
+                      className="rounded-lg bg-[var(--tdc-rose)] px-4 py-2 text-sm font-medium text-white transition hover:bg-[var(--tdc-rose-dark)]"
                     >
-                      Propose Package Match
+                      Send match
                     </button>
                   </div>
                 </div>
@@ -198,36 +375,68 @@ export default function CustomerDetailPage() {
         </div>
       </div>
 
-      {/* Profile Dispatch Authorization Overlay Modal */}
+      {/* Send match modal */}
       {selectedMatch && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-gray-900/60 p-4 animate-fade-in">
-          <div className="w-full max-w-md rounded-xl bg-white p-5 border border-gray-200 shadow-2xl">
-            <h3 className="text-base font-bold text-gray-900">Authorize Profile Transmission</h3>
-            <p className="mt-1 text-xs text-gray-500">
-              You are authorizing the dispatch of client folder <strong>{selectedMatch.profile.firstName} {selectedMatch.profile.lastName}</strong> to primary contact point <strong>{customer.firstName}</strong>.
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4">
+          <div className="w-full max-w-md rounded-2xl border border-[var(--tdc-border)] bg-[var(--tdc-surface)] p-6 shadow-2xl">
+            <h3 className="text-lg font-bold text-[var(--tdc-text)]">
+              Send match proposal
+            </h3>
+            <p className="mt-2 text-sm text-[var(--tdc-muted)]">
+              You&apos;re about to share{" "}
+              <strong>
+                {selectedMatch.profile.firstName} {selectedMatch.profile.lastName}
+              </strong>
+              &apos;s profile with{" "}
+              <strong>
+                {customer.firstName} {customer.lastName}
+              </strong>
+              .
             </p>
-            
+
+            <div className="mt-4 rounded-lg border border-[var(--tdc-border)] bg-[var(--tdc-bg)] p-4 text-sm">
+              <p className="font-semibold text-[var(--tdc-text)]">
+                {selectedMatch.profile.firstName} {selectedMatch.profile.lastName}
+                <span className="font-normal text-[var(--tdc-muted)]">
+                  {" "}
+                  · {getAge(selectedMatch.profile.dateOfBirth)} · {selectedMatch.profile.city}
+                </span>
+              </p>
+              <p className="mt-1 capitalize text-[var(--tdc-muted)]">
+                {selectedMatch.profile.designation} @ {selectedMatch.profile.company}
+              </p>
+              <p className="mt-2 text-[var(--tdc-text)]">
+                {selectedMatch.profile.religion} ·{" "}
+                {selectedMatch.profile.diet.replace("_", " ")}
+              </p>
+              <p className="mt-1 font-medium text-[var(--tdc-rose)]">
+                Compatibility: {selectedMatch.score}% — {selectedMatch.tier}
+              </p>
+            </div>
+
             {aiIntros[selectedMatch.profile.id] && (
-              <div className="mt-3 rounded bg-gray-50 p-3 text-xs text-gray-600 italic border border-gray-200">
+              <div className="mt-3 rounded-lg border-l-4 border-[var(--tdc-rose)] bg-[var(--tdc-rose-light)]/50 p-3 text-sm italic text-[var(--tdc-text)]">
                 {aiIntros[selectedMatch.profile.id]}
               </div>
             )}
 
-            <div className="mt-4 flex justify-end gap-2">
+            <div className="mt-6 flex justify-end gap-2">
               <button
                 onClick={() => setSelectedMatch(null)}
-                className="rounded border border-gray-300 px-3 py-1.5 text-xs font-medium text-gray-600 hover:bg-gray-50 transition"
+                className="rounded-lg border border-[var(--tdc-border)] px-4 py-2 text-sm font-medium text-[var(--tdc-text)] transition hover:bg-[var(--tdc-bg)]"
               >
-                Abort
+                Cancel
               </button>
               <button
                 onClick={() => {
                   setSelectedMatch(null);
-                  triggerSystemToast(`Match dossier transmitted successfully to: ${customer.email}`);
+                  triggerToast(
+                    `Match sent to ${customer.firstName} ${customer.lastName} ✓`
+                  );
                 }}
-                className="rounded bg-black px-4 py-1.5 text-xs font-medium text-white hover:bg-gray-800 transition"
+                className="rounded-lg bg-[var(--tdc-rose)] px-4 py-2 text-sm font-medium text-white transition hover:bg-[var(--tdc-rose-dark)]"
               >
-                Confirm Dispatch
+                Send
               </button>
             </div>
           </div>
