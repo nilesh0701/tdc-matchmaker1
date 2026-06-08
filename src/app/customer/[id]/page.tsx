@@ -8,6 +8,8 @@ import { onAuthStateChanged } from "firebase/auth";
 import { auth, db } from "@/lib/firebase";
 import { findMatches, Profile, MatchResult } from "@/lib/matchingEngine";
 import NotesEditor from "@/components/NotesEditor";
+import CompatibilityBar from "@/components/CompatibilityBar";
+import WeightingMatrix from "@/components/WeightingMatrix";
 import {
   getAge,
   getAvatarColor,
@@ -38,18 +40,6 @@ const FEMALE_DIMENSION_MAX: Record<string, number> = {
   language: 15,
 };
 
-function formatLabel(key: string): string {
-  return key
-    .replace(/([A-Z])/g, " $1")
-    .replace(/^./, (s) => s.toUpperCase());
-}
-
-function scoreBadgeClass(score: number): string {
-  if (score >= 70) return "bg-green-50 text-green-700 border-green-200";
-  if (score >= 45) return "bg-blue-50 text-blue-700 border-blue-200";
-  return "bg-orange-50 text-orange-700 border-orange-200";
-}
-
 function ProfileField({
   label,
   value,
@@ -63,44 +53,6 @@ function ProfileField({
       <span className="text-right text-sm font-medium capitalize text-[var(--tdc-text)]">
         {value}
       </span>
-    </div>
-  );
-}
-
-function ScoreBreakdown({
-  breakdown,
-  dimensionMax,
-}: {
-  breakdown: Record<string, number>;
-  dimensionMax: Record<string, number>;
-}) {
-  return (
-    <div className="mt-4">
-      <p className="mb-2 text-xs font-semibold uppercase tracking-wide text-[var(--tdc-muted)]">
-        Why this match
-      </p>
-      <div className="space-y-2">
-        {Object.entries(breakdown).map(([key, value]) => {
-          const max = dimensionMax[key] ?? 20;
-          const pct = max > 0 ? (value / max) * 100 : 0;
-          return (
-            <div key={key}>
-              <div className="mb-0.5 flex justify-between text-xs">
-                <span className="text-[var(--tdc-muted)]">{formatLabel(key)}</span>
-                <span className="font-medium text-[var(--tdc-text)]">
-                  {value}/{max}
-                </span>
-              </div>
-              <div className="h-1.5 overflow-hidden rounded-full bg-[var(--tdc-rose-light)]">
-                <div
-                  className="h-full rounded-full bg-[var(--tdc-rose)] transition-all"
-                  style={{ width: `${pct}%` }}
-                />
-              </div>
-            </div>
-          );
-        })}
-      </div>
     </div>
   );
 }
@@ -287,7 +239,7 @@ export default function CustomerDetailPage() {
               {matches.map((match) => (
                 <div
                   key={match.profile.id}
-                  className="rounded-xl border border-[var(--tdc-border)] bg-[var(--tdc-surface)] p-5 shadow-sm"
+                  className="rounded-xl border border-[var(--tdc-border)] bg-[var(--tdc-surface)] p-5 shadow-sm transition-all duration-300 ease-in-out hover:-translate-y-0.5 hover:border-gray-300 hover:shadow-lg"
                 >
                   <div className="flex items-start justify-between gap-4">
                     <div className="flex items-start gap-3">
@@ -312,11 +264,7 @@ export default function CustomerDetailPage() {
                         </p>
                       </div>
                     </div>
-                    <span
-                      className={`shrink-0 rounded-full border px-2.5 py-0.5 text-xs font-semibold ${scoreBadgeClass(match.score)}`}
-                    >
-                      {match.score}% · {match.tier}
-                    </span>
+                    <CompatibilityBar score={match.score} tier={match.tier} />
                   </div>
 
                   <div className="mt-4 grid grid-cols-2 gap-3 rounded-lg bg-[var(--tdc-bg)] p-3 text-sm sm:grid-cols-4">
@@ -342,7 +290,7 @@ export default function CustomerDetailPage() {
                     </div>
                   </div>
 
-                  <ScoreBreakdown
+                  <WeightingMatrix
                     breakdown={match.breakdown}
                     dimensionMax={dimensionMax}
                   />
@@ -409,9 +357,12 @@ export default function CustomerDetailPage() {
                 {selectedMatch.profile.religion} ·{" "}
                 {selectedMatch.profile.diet.replace("_", " ")}
               </p>
-              <p className="mt-1 font-medium text-[var(--tdc-rose)]">
-                Compatibility: {selectedMatch.score}% — {selectedMatch.tier}
-              </p>
+              <div className="mt-3 max-w-xs">
+                <CompatibilityBar
+                  score={selectedMatch.score}
+                  tier={selectedMatch.tier}
+                />
+              </div>
             </div>
 
             {aiIntros[selectedMatch.profile.id] && (
