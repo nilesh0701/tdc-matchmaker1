@@ -229,6 +229,8 @@ export default function CustomerDetailPage() {
                         label="Manglik Status"
                         value={customer.manglik ? "Yes" : "No"}
                       />
+                      <ProfileField label="Siblings" value={customer.siblings} />
+                      <ProfileField label="Open to Pets" value={customer.openToPets} />
                     </div>
                   </div>
                 </div>
