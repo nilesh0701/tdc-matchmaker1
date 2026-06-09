@@ -163,9 +163,9 @@ export default function CustomerDetailPage() {
           ← All clients
         </Link>
 
-        <div className="mt-6 grid grid-cols-1 gap-8 lg:grid-cols-3">
-          {/* Left panel — Profile */}
-          <div className="space-y-6 lg:col-span-1">
+        <div className="mt-6 grid grid-cols-1 items-start gap-6 lg:grid-cols-3 lg:gap-x-8 lg:gap-y-0">
+          {/* Left panel — Profile + Notes (pinned operations sidebar) */}
+          <div className="space-y-6 pr-2 scrollbar-thin lg:col-span-1 lg:sticky lg:top-6 lg:h-[calc(100vh-3rem)] lg:overflow-y-auto">
             <div className="rounded-xl border border-[var(--tdc-border)] bg-[var(--tdc-surface)] p-6 shadow-sm">
               <p className="text-xs font-semibold uppercase tracking-wide text-[var(--tdc-muted)]">
                 Profile
@@ -247,7 +247,7 @@ export default function CustomerDetailPage() {
           </div>
 
           {/* Right panel — Matches */}
-          <div className="lg:col-span-2">
+          <div className="min-w-0 lg:col-span-2">
             <h3 className="text-lg font-bold text-[var(--tdc-text)]">
               Top matches for {customer.firstName}
             </h3>

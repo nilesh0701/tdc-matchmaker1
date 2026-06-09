@@ -40,3 +40,17 @@ body {
 .animate-fade-in {
   animation: fade-in 0.25s ease-out forwards;
 }
+
+.scrollbar-thin {
+  scrollbar-width: thin;
+  scrollbar-color: var(--tdc-border) transparent;
+}
+
+.scrollbar-thin::-webkit-scrollbar {
+  width: 6px;
+}
+
+.scrollbar-thin::-webkit-scrollbar-thumb {
+  background-color: var(--tdc-border);
+  border-radius: 9999px;
+}

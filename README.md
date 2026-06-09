@@ -40,3 +40,5 @@ When a matchmaker clicks **Generate AI note**, the app sends both profiles and t
 - Income, age, and religion preferences reflect common Indian matrimonial norms but are simplified heuristics, not client-specific filters.
 - Profile photos are represented by initials avatars; no image upload or storage is implemented.
 - Firestore stores only per-client notes; match history and audit logs are out of scope.
+
+
